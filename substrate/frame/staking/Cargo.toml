@@ -36,6 +36,9 @@ log = { version = "0.4.17", default-features = false }
 frame-benchmarking = { path = "../benchmarking", default-features = false, optional = true }
 rand_chacha = { version = "0.2", default-features = false, optional = true }
 
+# ORML
+traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library.git", default-features = false, branch = "polkadot-v1.1.0", package = "orml-traits" }
+
 [dev-dependencies]
 sp-tracing = { path = "../../primitives/tracing" }
 sp-core = { path = "../../primitives/core" }
@@ -73,6 +76,7 @@ std = [
 	"sp-staking/std",
 	"sp-std/std",
 	"sp-tracing/std",
+	"traits/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
