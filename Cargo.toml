@@ -96,7 +96,7 @@ members = [
 	# "cumulus/test/runtime",
 	# "cumulus/test/service",
 	# "cumulus/xcm/xcm-emulator",
-	"polkadot",
+	# "polkadot",
 	# "polkadot/cli",
 	# "polkadot/core-primitives",
 	# "polkadot/erasure-coding",
@@ -466,7 +466,6 @@ members = [
 	# "substrate/utils/prometheus",
 	# "substrate/utils/wasm-builder",
 ]
-default-members = ["polkadot", "substrate/bin/node/cli"]
 
 [workspace.lints.rust]
 suspicious_double_ref_op = { level = "allow", priority = 2 }

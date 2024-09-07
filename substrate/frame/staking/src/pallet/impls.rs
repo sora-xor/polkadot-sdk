@@ -27,8 +27,8 @@ use frame_support::{
 	dispatch::WithPostDispatchInfo,
 	pallet_prelude::*,
 	traits::{
-		Currency, Defensive, DefensiveResult, EstimateNextNewSession, Get, LockableCurrency,
-		TryCollect, UnixTime, WithdrawReasons,
+		Currency, Defensive, DefensiveResult, DefensiveSaturating, EstimateNextNewSession, Get,
+		LockableCurrency, TryCollect, UnixTime, WithdrawReasons,
 	},
 	weights::Weight,
 };
@@ -49,9 +49,9 @@ use sp_std::prelude::*;
 
 use crate::{
 	election_size_tracker::StaticTracker, log, slashing, weights::WeightInfo, ActiveEraInfo,
-	BalanceOf, Exposure, ExposureOf, Forcing, IndividualExposure, MaxNominationsOf, MaxWinnersOf,
-	Nominations, NominationsQuota, RewardDestination, SessionInterface, StakingLedger,
-	ValidatorPrefs,
+	BalanceOf, EraInfo, Exposure, ExposureOf, Forcing, IndividualExposure, MaxNominationsOf,
+	MaxWinnersOf, Nominations, NominationsQuota, RewardDestination, SessionInterface,
+	StakingLedger, ValidatorPrefs,
 };
 
 use crate::sora::{Duration, DurationWrapper, MultiCurrencyBalanceOf};
@@ -280,7 +280,7 @@ impl<T: Config> Pallet<T> {
 		});
 
 		// We can now make total validator payout:
-		if let Some((imbalance, dest)) =
+		if let Some(imbalance) =
 			Self::make_payout(&stash, validator_staking_payout + validator_commission_payout)
 		{
 			Self::deposit_event(Event::<T>::Rewarded { stash: ledger.stash, amount: imbalance });
@@ -299,7 +299,7 @@ impl<T: Config> Pallet<T> {
 			let nominator_reward: MultiCurrencyBalanceOf<T> =
 				nominator_exposure_part * validator_leftover_payout;
 			// We can now make nominator payout:
-			if let Some((imbalance, dest)) = Self::make_payout(&nominator.who, nominator_reward) {
+			if let Some(imbalance) = Self::make_payout(&nominator.who, nominator_reward) {
 				// Note: this logic does not count payouts for `RewardDestination::None`.
 				nominator_payout_count += 1;
 				let e = Event::<T>::Rewarded { stash: nominator.who.clone(), amount: imbalance };
@@ -326,35 +326,24 @@ impl<T: Config> Pallet<T> {
 		stash: &T::AccountId,
 		amount: MultiCurrencyBalanceOf<T>,
 	) -> Option<MultiCurrencyBalanceOf<T>> {
-		let dest = Self::payee(stash);
+		let dest = Self::payee(StakingAccount::Stash(stash.clone()));
 		match dest {
+			#[allow(deprecated)]
 			RewardDestination::Controller => Self::bonded(stash).and_then(|controller| {
 				T::MultiCurrency::deposit(T::ValTokenId::get(), &controller, amount)
 					.ok()
 					.map(|_| amount)
 			}),
-			RewardDestination::Stash | RewardDestination::Staked => {
+			RewardDestination::Stash | RewardDestination::Staked =>
 				T::MultiCurrency::deposit(T::ValTokenId::get(), stash, amount)
 					.ok()
-					.map(|_| amount)
-			},
-			RewardDestination::Account(dest_account) => {
+					.map(|_| amount),
+			RewardDestination::Account(dest_account) =>
 				T::MultiCurrency::deposit(T::ValTokenId::get(), &dest_account, amount)
 					.ok()
-					.map(|_| amount)
-				},
+					.map(|_| amount),
 			RewardDestination::None => None,
-			#[allow(deprecated)]
-			RewardDestination::Controller => Self::bonded(stash)
-					.map(|controller| {
-						defensive!("Paying out controller as reward destination which is deprecated and should be migrated.");
-						// This should never happen once payees with a `Controller` variant have been migrated.
-						// But if it does, just pay the controller account.
-						T::Currency::deposit_creating(&controller, amount)
-		}),
-		};
-		maybe_imbalance
-			.map(|imbalance| (imbalance, Self::payee(StakingAccount::Stash(stash.clone()))))
+		}
 	}
 
 	/// Plan a new session potentially trigger a new era.

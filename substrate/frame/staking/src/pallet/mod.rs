@@ -26,7 +26,7 @@ use frame_support::{
 	pallet_prelude::*,
 	traits::{
 		Currency, Defensive, DefensiveSaturating, EnsureOrigin, EstimateNextNewSession, Get,
-		LockableCurrency, OnUnbalanced, UnixTime,
+		LockIdentifier, LockableCurrency, OnUnbalanced, UnixTime,
 	},
 	weights::Weight,
 	BoundedVec,
@@ -49,9 +49,9 @@ pub use impls::*;
 
 use crate::{
 	slashing, weights::WeightInfo, AccountIdLookupOf, ActiveEraInfo, BalanceOf, EraRewardPoints,
-	Exposure, Forcing, MaxNominationsOf, NegativeImbalanceOf, Nominations, NominationsQuota,
-	RewardDestination, SessionInterface, StakingLedger, UnappliedSlash, UnlockChunk,
-	ValidatorPrefs,
+	Exposure, ExposurePage, Forcing, MaxNominationsOf, NegativeImbalanceOf, Nominations,
+	NominationsQuota, RewardDestination, SessionInterface, StakingLedger, UnappliedSlash,
+	UnlockChunk, ValidatorPrefs,
 };
 
 use crate::sora::{DurationWrapper, MultiCurrencyBalanceOf, MultiCurrencyIdOf, ValRewardCurve};
@@ -220,6 +220,13 @@ pub mod pallet {
 		/// without handling it in a migration.
 		#[pallet::constant]
 		type MaxExposurePageSize: Get<u32>;
+
+		/// The maximum number of nominators rewarded for each validator.
+		///
+		/// For each validator only the `$MaxNominatorRewardedPerValidator` biggest stakers can
+		/// claim their reward. This used to limit the i/o cost for the nominator payout.
+		#[pallet::constant]
+		type MaxNominatorRewardedPerValidator: Get<u32>;
 
 		/// The fraction of the validator set that is safe to be offending.
 		/// After the threshold is reached a new era will be forced.
